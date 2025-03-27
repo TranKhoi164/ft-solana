@@ -10,6 +10,9 @@ skip-lint = false
 [programs.localnet]
 ft_solana = "FNufCrMUFRhAGRYHNbq7r8YPy8cbjc6hJvsKUFD7Qhuh"
 
+[programs.devnet]
+ft_solana = "FNufCrMUFRhAGRYHNbq7r8YPy8cbjc6hJvsKUFD7Qhuh"
+
 [registry]
 url = "https://api.apr.dev"
 
