@@ -37,6 +37,9 @@ const createAndMintTokens = async () => {
 
   const keypair = umi.eddsa.createKeypairFromSecretKey(new Uint8Array(walletFile));
   umi.use(keypairIdentity(keypair));
+
+
+
 // Airdrop 1 SOL to the identity
   // if you end up with a 429 too many requests error, you may have to use
   // the filesystem wallet method or change rpcs.
@@ -91,7 +94,16 @@ const createAndMintTokens = async () => {
   // });
 
   // Creating the mintIx
-let metadataUri = 'https://ubm6evsuvwlccrmdmsftgueow65vvsdafyrewxlsahveo5b6qebq.arweave.net/oFniVlStliFFg2SLM1COt7tayGAuIktdcgHqR3Q-gQM'
+// let metadataUri = 'https://ubm6evsuvwlccrmdmsftgueow65vvsdafyrewxlsahveo5b6qebq.arweave.net/oFniVlStliFFg2SLM1COt7tayGAuIktdcgHqR3Q-gQM'
+  
+
+  let metadataUri = 'https://raw.githubusercontent.com/TranKhoi164/ft-solana/refs/heads/main/assets/metadata.json'
+  
+  // Token Identity	Its publicKey becomes the token's permanent mint address.
+  // Mint Authority	Can mint/burn tokens (unless authority is revoked).
+  // Transaction Signer	Signs the token creation transaction.
+  // summary mintSigner.publicKey is the token's on-chain address(contract address)
+  // The mintSigner.secretKey controls minting/burning permissions.
   const mintSigner = generateSigner(umi);
   // const createFungibleIx = 
   await createFungible(umi, {
