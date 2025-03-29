@@ -1,199 +1,131 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Approve, Burn, Mint, MintTo, Token, TokenAccount, Transfer};
+use anchor_spl::{
+  associated_token::AssociatedToken,
+  metadata::{
+    create_metadata_accounts_v3,
+    mpl_token_metadata::types::DataV2,
+    CreateMetadataAccountsV3,
+    Metadata as Metaplex
+  },
+  token::{self, Approve, Burn, Mint, MintTo, Token, TokenAccount, mint_to, Transfer}
+};
 
 declare_id!("FNufCrMUFRhAGRYHNbq7r8YPy8cbjc6hJvsKUFD7Qhuh");
-
+// https://ubm6evsuvwlccrmdmsftgueow65vvsdafyrewxlsahveo5b6qebq.arweave.net/oFniVlStliFFg2SLM1COt7tayGAuIktdcgHqR3Q-gQM
 #[program]
-pub mod erc20_token {
+pub mod ft_solana {
     use super::*;
 
     // Initialize the token mint
-    pub fn initialize(
-        ctx: Context<Initialize>,
-        //decimals: u8,
-        initial_supply: u64,
-    ) -> Result<()> {
-        // Mint initial supply to the initial holder
-        token::mint_to(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                token::MintTo {
-                    mint: ctx.accounts.mint.to_account_info(),
-                    to: ctx.accounts.initial_holder.to_account_info(),
-                    authority: ctx.accounts.mint_authority.to_account_info(),
-                },
-            ),
-            initial_supply,
-        )?;
+    pub fn initiate_token(_ctx: Context<InitToken>, metadata: InitTokenParams) -> Result<()> {
+      let seeds = &["mint".as_bytes(), &[_ctx.bumps.mint]];
+      let signer = [&seeds[..]];
 
-        Ok(())
-    }
+      let token_data: DataV2 = DataV2 {
+          name: metadata.name,
+          symbol: metadata.symbol,
+          uri: metadata.uri,
+          seller_fee_basis_points: 0,
+          creators: None,
+          collection: None,
+          uses: None,
+      };
 
-    // Returns the balance of a token account (balanceOf in ERC20)
-    pub fn balance_of(ctx: Context<BalanceOf>) -> Result<()> {
-        // Balance is automatically available in ctx.accounts.token_account.amount
-        Ok(())
-    }
+      let metadata_ctx = CpiContext::new_with_signer(
+          _ctx.accounts.token_metadata_program.to_account_info(),
+          CreateMetadataAccountsV3 {
+              payer: _ctx.accounts.payer.to_account_info(),
+              update_authority: _ctx.accounts.mint.to_account_info(),
+              mint: _ctx.accounts.mint.to_account_info(),
+              metadata: _ctx.accounts.metadata.to_account_info(),
+              mint_authority: _ctx.accounts.mint.to_account_info(),
+              system_program: _ctx.accounts.system_program.to_account_info(),
+              rent: _ctx.accounts.rent.to_account_info(),
+          },
+          &signer,
+      );
 
-    // Transfer tokens to another account
-    pub fn transfer(ctx: Context<TransferTokens>, amount: u64) -> Result<()> {
-        token::transfer(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                token::Transfer {
-                    from: ctx.accounts.from.to_account_info(),
-                    to: ctx.accounts.to.to_account_info(),
-                    authority: ctx.accounts.owner.to_account_info(),
-                },
-            ),
-            amount,
-        )?;
-        Ok(())
-    }
+      create_metadata_accounts_v3(metadata_ctx, token_data, false, true, None)?;
 
-    // Approve another account to spend tokens (transferFrom)
-    pub fn approve(ctx: Context<ApproveSpender>, amount: u64) -> Result<()> {
-        token::approve(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                token::Approve {
-                    to: ctx.accounts.to.to_account_info(),
-                    delegate: ctx.accounts.delegate.to_account_info(),
-                    authority: ctx.accounts.owner.to_account_info(),
-                },
-            ),
-            amount,
-        )?;
-        Ok(())
-    }
+      msg!("Token mint created successfully.");
+      Ok(())
+  }
 
-    // Mint new tokens (only by mint authority)
-    pub fn mint(ctx: Context<MintTokens>, amount: u64) -> Result<()> {
-        token::mint_to(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                token::MintTo {
-                    mint: ctx.accounts.mint.to_account_info(),
-                    to: ctx.accounts.to.to_account_info(),
-                    authority: ctx.accounts.mint_authority.to_account_info(),
-                },
-            ),
-            amount,
-        )?;
-        Ok(())
-    }
 
-    // Burn tokens
-    pub fn burn(ctx: Context<BurnTokens>, amount: u64) -> Result<()> {
-        token::burn(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                token::Burn {
-                    mint: ctx.accounts.mint.to_account_info(),
-                    from: ctx.accounts.from.to_account_info(),
-                    authority: ctx.accounts.owner.to_account_info(),
-                },
-            ),
-            amount,
-        )?;
-        Ok(())
-    }
+  pub fn mint_tokens(ctx: Context<MintTokens>, quantity: u64) -> Result<()> {
+    let seeds = &["mint".as_bytes(), &[ctx.bumps.mint]];
+    let signer = [&seeds[..]];
 
-    // Transfer tokens on behalf of another account (transferFrom)
-    pub fn transfer_from(ctx: Context<TransferFrom>, amount: u64) -> Result<()> {
-        token::transfer(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                token::Transfer {
-                    from: ctx.accounts.from.to_account_info(),
-                    to: ctx.accounts.to.to_account_info(),
-                    authority: ctx.accounts.delegate.to_account_info(),
-                },
-            ),
-            amount,
-        )?;
-        Ok(())
-    }
+    mint_to(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            MintTo {
+                authority: ctx.accounts.mint.to_account_info(),
+                to: ctx.accounts.destination.to_account_info(),
+                mint: ctx.accounts.mint.to_account_info(),
+            },
+            &signer,
+        ),
+        quantity,
+    )?;
+
+    Ok(())
+}
 }
 
-// Accounts for initialization
+
 #[derive(Accounts)]
-pub struct Initialize<'info> {
+#[instruction(params: InitTokenParams)]
+pub struct InitToken<'info> {
+    #[account(mut)]
+    /// CHECK: UncheckedAccount
+    pub metadata: UncheckedAccount<'info>,
     #[account(
         init,
-        payer = payer,
-        mint::decimals = 9,
-        mint::authority = mint_authority.key(),
+        seeds = [b"mint"],
+        bump,
+        payer = payer, //The payer covers the rent-exempt cost
+        mint::decimals = params.decimals,
+        mint::authority = mint, // PDA is the mint authority => only program can mint tokens
     )]
-    pub mint: Account<'info, Mint>, // generating ATA?
-    #[account(mut)]
-    pub initial_holder: Account<'info, TokenAccount>,
+    pub mint: Account<'info, Mint>,
     #[account(mut)]
     pub payer: Signer<'info>,
-    pub mint_authority: Signer<'info>,
-    pub token_program: Program<'info, Token>,
-    pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
-}
-
-// Accounts for balance check
-#[derive(Accounts)]
-pub struct BalanceOf<'info> {
-    pub token_account: Account<'info, TokenAccount>,
-}
-
-// Accounts for transfer
-#[derive(Accounts)]
-pub struct TransferTokens<'info> {
-    #[account(mut)]
-    pub from: Account<'info, TokenAccount>,
-    #[account(mut)]
-    pub to: Account<'info, TokenAccount>,
-    pub owner: Signer<'info>,
+    pub system_program: Program<'info, System>, //the program is accessing the Rent sysvar, which stores rent-related data like minimum balance requirements.
     pub token_program: Program<'info, Token>,
+    pub token_metadata_program: Program<'info, Metaplex>,
 }
 
-// Accounts for approve
 #[derive(Accounts)]
-pub struct ApproveSpender<'info> {
-    #[account(mut)]
-    pub to: Account<'info, TokenAccount>,
-    /// CHECK: This is the delegate being approved
-    pub delegate: UncheckedAccount<'info>,
-    pub owner: Signer<'info>,
-    pub token_program: Program<'info, Token>,
-}
-
-// Accounts for minting
-#[derive(Accounts)]
-pub struct MintTokens<'info> {
-    #[account(mut)]
+pub struct MintTokens<'info> { // not the account, but a context struct that groups multiple account needed for instruction
+    #[account(
+        mut,
+        seeds = [b"mint"], // PDA derived from "mint" seed
+        bump, // Stores the bump seed
+        mint::authority = mint, // The mint itself is the authority, no external signer is required to mint new tokens. Mint account can mint new tokens, but only if program sign for it (seed, bump)
+    )]
     pub mint: Account<'info, Mint>,
+    #[account( // normal token account (ata)
+        init, 
+        payer = payer, // `payer` funds the account creation
+        //It means that this token account (destination) is designed to hold tokens that were created by the mint account.
+        associated_token::mint = mint, // The token account is tied to the `mint`. This Account Stores Tokens from the Mint
+        associated_token::authority = payer, // `payer` (wallet)  is the owner of the token account
+    )] // normal account
+    pub destination: Account<'info, TokenAccount>,
     #[account(mut)]
-    pub to: Account<'info, TokenAccount>,
-    pub mint_authority: Signer<'info>,
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>, // min lamports to keep account on chain
+    pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>, // use when working with ATA in solana
 }
 
-// Accounts for burning
-#[derive(Accounts)]
-pub struct BurnTokens<'info> {
-    #[account(mut)]
-    pub mint: Account<'info, Mint>,
-    #[account(mut)]
-    pub from: Account<'info, TokenAccount>,
-    pub owner: Signer<'info>,
-    pub token_program: Program<'info, Token>,
-}
-
-// Accounts for transferFrom
-#[derive(Accounts)]
-pub struct TransferFrom<'info> {
-    #[account(mut)]
-    pub from: Account<'info, TokenAccount>,
-    #[account(mut)]
-    pub to: Account<'info, TokenAccount>,
-    /// CHECK: This must be the approved delegate
-    pub delegate: Signer<'info>,
-    pub token_program: Program<'info, Token>,
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
+pub struct InitTokenParams {
+    pub name: String,
+    pub symbol: String,
+    pub uri: String,
+    pub decimals: u8,
 }

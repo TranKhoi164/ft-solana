@@ -1,0 +1,7 @@
+{
+  "name": "Test SPL Token",
+  "symbol": "TST", 
+  "description": "Test Spl Token Demo",
+  "image": "https://raw.githubusercontent.com/VictorLuu99/token2025-solana/main/assets/2025.png"
+}
+
